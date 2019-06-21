@@ -10,7 +10,7 @@ public abstract class AbstractApplicationContext {
     /**
      * 受保护，只给子类重写
      */
-    protected void refresh() {
+    protected void refresh() throws Exception {
 
     }
 

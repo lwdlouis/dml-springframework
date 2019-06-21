@@ -5,10 +5,14 @@
 <web-app>
     <display-name>DML Spring Application</display-name>
     
-    
     <servlet>
         <servlet-name>dmlmvc</servlet-name>
         <servlet-class>com.dml.spring.framework.webmvc.servlet.DispatcherServlet</servlet-class>
+        <init-param>
+            <param-name>contextConfigLocation</param-name>
+            <param-value>classpath:application.properties</param-value>
+        </init-param>
+        <load-on-startup>1</load-on-startup>
     </servlet>
     
     <servlet-mapping>

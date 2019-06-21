@@ -3,12 +3,14 @@ package com.dml.spring.framework.annotation;
 
 import java.lang.annotation.*;
 
-@Target({ElementType.METHOD, ElementType.TYPE})
+/**
+ * 自动注入
+ * @author Tom
+ *
+ */
+@Target({ElementType.FIELD, ElementType.PARAMETER})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface RequestMapping {
-
+public @interface Autowire {
     String value() default "";
-
-    String path() default "";
 }

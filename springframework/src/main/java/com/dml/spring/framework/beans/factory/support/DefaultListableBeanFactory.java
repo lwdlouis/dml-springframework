@@ -15,7 +15,11 @@ public class DefaultListableBeanFactory extends AbstractApplicationContext {
 
 
     /** Map of bean definition objects, keyed by bean name */
-    //存储注册信息的BeanDefinition
+
+    /**
+     *  存储注册信息的BeanDefinition
+     *  这是一个 伪 IOC 容器，因为这个并没有存放 Bean 的实例，只是放着要实例化的 bean 的信息
+     */
     protected final Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap(256);
 
 

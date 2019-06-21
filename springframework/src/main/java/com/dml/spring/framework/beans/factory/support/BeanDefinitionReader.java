@@ -1,14 +1,22 @@
 package com.dml.spring.framework.beans.factory.support;
 
+import com.dml.spring.framework.annotation.Component;
+import com.dml.spring.framework.annotation.Controller;
+import com.dml.spring.framework.annotation.RestController;
+import com.dml.spring.framework.annotation.Service;
 import com.dml.spring.framework.beans.factory.config.BeanDefinition;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.JarURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 public class BeanDefinitionReader {
 
@@ -33,15 +41,15 @@ public class BeanDefinitionReader {
     private final String SCAN_PACKAGE = "scanPackage";
 
 
-    public BeanDefinitionReader(String... locations) {
+    public BeanDefinitionReader(String... locations) throws Exception {
         //通过URL定位找到其所对应的文件，然后转换为文件流 （如果是注解式就扫描所有的类，scan方法）
-        InputStream is = this.getClass().getClassLoader().getResourceAsStream(locations[0].replace("classpath:",""));
+        InputStream is = this.getClass().getClassLoader().getResourceAsStream(locations[0].replace("classpath:", ""));
         try {
             config.load(is);
         } catch (IOException e) {
             e.printStackTrace();
-        }finally {
-            if(null != is){
+        } finally {
+            if (null != is) {
                 try {
                     is.close();
                 } catch (IOException e) {
@@ -55,18 +63,48 @@ public class BeanDefinitionReader {
         doScanner(config.getProperty(SCAN_PACKAGE));
     }
 
-    private void doScanner(String scanPackage) {
+    private void doScanner(String scanPackage) throws Exception {
 
         // 将包路径 转为 实际文件路径
-        URL url = this.getClass().getResource("/" + scanPackage.replaceAll("\\.","/"));
-        File classPath = new File(url.getFile());
+        URL url = this.getClass().getResource("/" + scanPackage.replaceAll("\\.", "/"));
 
-        for (File file : classPath.listFiles()) {
-            if(file.isDirectory()){
-                doScanner(scanPackage + "." + file.getName());
-            }else{
-                if(!file.getName().endsWith(".class")){ continue;}
-                String className = (scanPackage + "." + file.getName().replace(".class",""));
+        String protocol = url.getProtocol();
+
+        if ("file".equals(protocol)) {
+            File classPath = new File(url.getFile());
+
+            for (File file : classPath.listFiles()) {
+                if (file.isDirectory()) {
+                    doScanner(scanPackage + "." + file.getName());
+                } else {
+                    if (!file.getName().endsWith(".class")) {
+                        continue;
+                    }
+                    String className = (scanPackage + "." + file.getName().replace(".class", ""));
+                    registyBeanClasses.add(className);
+                }
+            }
+
+        } else if ("jar".equals(protocol)) {
+            String pkgDir = scanPackage.replace(".", "/");
+
+            JarFile jar = ((JarURLConnection) url.openConnection()).getJarFile();
+
+            Enumeration<JarEntry> entry = jar.entries();
+
+            JarEntry jarEntry;
+            String name, className;
+            while (entry.hasMoreElements()) {
+
+                // 获取jar里的一个实体 可以是目录 和一些jar包里的其他文件 如META-INF等文
+                jarEntry = entry.nextElement();
+                name = jarEntry.getName();
+
+                if (jarEntry.isDirectory() || !name.startsWith(pkgDir) || !name.endsWith(".class")) {
+                    continue;
+                }
+
+                className = name.substring(0, name.length() - 6).replace("/", ".");
                 registyBeanClasses.add(className);
             }
         }
@@ -96,7 +134,13 @@ public class BeanDefinitionReader {
                     continue;
                 }
 
-                result.add(doCreateBeanDefinition(beanClass));
+                if (beanClass.isAnnotationPresent(Controller.class)
+                        || beanClass.isAnnotationPresent(Service.class)
+                        || beanClass.isAnnotationPresent(Component.class)
+                        || beanClass.isAnnotationPresent(RestController.class)) {
+
+                    result.add(doCreateBeanDefinition(beanClass));
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -118,7 +162,7 @@ public class BeanDefinitionReader {
     //为了简化程序逻辑，就不做其他判断了，大家了解就OK
     //其实用写注释的时间都能够把逻辑写完了
     private String toLowerFirstCase(String simpleName) {
-        char [] chars = simpleName.toCharArray();
+        char[] chars = simpleName.toCharArray();
         //之所以加，是因为大小写字母的ASCII码相差32，
         // 而且大写字母的ASCII码要小于小写字母的ASCII码
         //在Java中，对char做算学运算，实际上就是对ASCII码做算学运算
