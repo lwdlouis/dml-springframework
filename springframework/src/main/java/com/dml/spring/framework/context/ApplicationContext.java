@@ -2,6 +2,11 @@ package com.dml.spring.framework.context;
 
 
 import com.dml.spring.framework.annotation.*;
+import com.dml.spring.framework.aop.AopPoxy;
+import com.dml.spring.framework.aop.CglibAopProxy;
+import com.dml.spring.framework.aop.JdkDynamicAopProxy;
+import com.dml.spring.framework.aop.config.AopConfig;
+import com.dml.spring.framework.aop.support.AdvisedSupport;
 import com.dml.spring.framework.beans.BeanFactory;
 import com.dml.spring.framework.beans.BeanWrapper;
 import com.dml.spring.framework.beans.factory.config.BeanDefinition;
@@ -189,14 +194,30 @@ public class ApplicationContext extends DefaultListableBeanFactory implements Be
         // 2。反射实例化，得到一个对象
         Object instance = null;
         try {
-            Class<?> clazz = Class.forName(className);
-            instance = clazz.newInstance();
+            // 如果单例的 IOC 容器缓存里面有就直接获取 （单例的情况下）
+            if (this.factoryBeanObjectCache.containsKey(className)) {
+                instance = this.factoryBeanObjectCache.get(className);
+            } else {
 
-            //根据类型注入
-            this.factoryBeanObjectCache.put(className, instance);
-            //根据bean name 注入
-            this.factoryBeanObjectCache.put(beanDefinition.getFactoryBeanName(), instance);
+                Class<?> clazz = Class.forName(className);
+                instance = clazz.newInstance();
 
+                //在类初始化，添加到 IOC 之前，添加 AOP
+                AdvisedSupport config = instantionAopConfig(beanDefinition);
+                config.setTargetClass(clazz);
+                config.setTarget(instance);
+
+                //符合PointCut的规则的话，闯将代理对象
+                if(config.pointCutMatch()) {
+                    instance = createProxy(config).getProxy();
+                }
+
+                //根据类型注入
+                this.factoryBeanObjectCache.put(className, instance);
+                //根据bean name 注入
+                this.factoryBeanObjectCache.put(beanDefinition.getFactoryBeanName(), instance);
+
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -208,6 +229,24 @@ public class ApplicationContext extends DefaultListableBeanFactory implements Be
         return beanWrapper;
     }
 
+    private AopPoxy createProxy(AdvisedSupport config) {
+        Class targetClass = config.getTargetClass();
+        if(targetClass.getInterfaces().length > 0){
+            return new JdkDynamicAopProxy(config);
+        }
+        return new CglibAopProxy(config);
+    }
+
+    private AdvisedSupport instantionAopConfig(BeanDefinition beanDefinition) {
+        AopConfig config = new AopConfig();
+        config.setPointCut(this.reader.getConfig().getProperty("pointCut"));
+        config.setAspectClass(this.reader.getConfig().getProperty("aspectClass"));
+        config.setAspectBefore(this.reader.getConfig().getProperty("aspectBefore"));
+        config.setAspectAfter(this.reader.getConfig().getProperty("aspectAfter"));
+        config.setAspectAfterThrow(this.reader.getConfig().getProperty("aspectAfterThrow"));
+        config.setAspectAfterThrowingName(this.reader.getConfig().getProperty("aspectAfterThrowingName"));
+        return new AdvisedSupport(config);
+    }
 
 
     public String[] getBeanDefinitionNames() {
