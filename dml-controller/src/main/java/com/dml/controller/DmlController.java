@@ -2,6 +2,7 @@ package com.dml.controller;
 
 
 import com.dml.model.UserInfo;
+import com.dml.service.BaseSevice;
 import com.dml.service.DmlService;
 import com.dml.spring.framework.annotation.*;
 import com.dml.spring.framework.ui.Model;
@@ -10,7 +11,7 @@ import com.dml.spring.framework.ui.Model;
 public class DmlController {
 
     @Autowire
-    private DmlService dmlService;
+    private BaseSevice dmlService;
 
     @RequestMapping("/index")
     public String index(@RequestParam("name") String name,

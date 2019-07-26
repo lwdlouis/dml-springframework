@@ -5,7 +5,7 @@ import com.dml.model.UserInfo;
 import com.dml.spring.framework.annotation.Service;
 
 @Service
-public class DmlService {
+public class DmlService implements BaseSevice {
 
 
     public String getFullName(String name) {

@@ -1,5 +1,7 @@
 package com.dml.spring.framework.aop.support;
 
+import com.dml.spring.framework.aop.aspect.AfterReturningAdviceInterceptor;
+import com.dml.spring.framework.aop.aspect.AfterThrowingAdviceInterceptor;
 import com.dml.spring.framework.aop.aspect.MethodBeforeAdviceInterceptor;
 import com.dml.spring.framework.aop.config.AopConfig;
 
@@ -19,11 +21,27 @@ public class AdvisedSupport {
 
     private AopConfig config;
 
+    // 把方法和对应的拦截器链关联起来
     private transient Map<Method, List<Object>> methodCache;
 
 
     public AdvisedSupport(AopConfig config) {
         this.config = config;
+    }
+
+
+    public List<Object> getInterceptorsAndDynamicInterceptionAdvice(Method method, Class<?> targetClass) throws Exception{
+        List<Object> cached = methodCache.get(method);
+        if(cached == null){
+            Method m = targetClass.getMethod(method.getName(),method.getParameterTypes());
+
+            cached = methodCache.get(m);
+
+            //底层逻辑，对代理方法进行一个兼容处理
+            this.methodCache.put(m,cached);
+        }
+
+        return cached;
     }
 
 
@@ -39,6 +57,11 @@ public class AdvisedSupport {
 
     public Class<?> getTargetClass() {
         return targetClass;
+    }
+
+
+    public void setTargetClass(Class<?> targetClass) {
+        this.targetClass = targetClass;
         parse();
     }
 
@@ -71,28 +94,30 @@ public class AdvisedSupport {
                         advices.add(new MethodBeforeAdviceInterceptor(aspectMethods.get(config.getAspectBefore()),  aspectClass.newInstance()));
                     }
 
+                    //after
+                    if(!(null == config.getAspectAfter() || "".equals(config.getAspectAfter()))) {
+                        //创建一个Advivce
+                        advices.add(new AfterReturningAdviceInterceptor(aspectMethods.get(config.getAspectAfter()),aspectClass.newInstance()));
+                    }
 
-
-
+                    //afterThrowing
+                    if(!(null == config.getAspectAfterThrow() || "".equals(config.getAspectAfterThrow()))) {
+                        //创建一个Advivce
+                        AfterThrowingAdviceInterceptor throwingAdvice =
+                                new AfterThrowingAdviceInterceptor(
+                                        aspectMethods.get(config.getAspectAfterThrow()),
+                                        aspectClass.newInstance());
+                        throwingAdvice.setThrowName(config.getAspectAfterThrowingName());
+                        advices.add(throwingAdvice);
+                    }
+                    this.methodCache.put(m, advices);
                 }
-
-
             }
-
-
-
-
-
-
         } catch (Exception e) {
             e.printStackTrace();
         }
 
 
-    }
-
-    public void setTargetClass(Class<?> targetClass) {
-        this.targetClass = targetClass;
     }
 
     public Object getTarget() {
